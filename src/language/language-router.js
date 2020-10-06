@@ -37,16 +37,34 @@ languageRouter
         language: req.language,
         words,
       })
-      next()
     } catch (error) {
       next(error)
     }
   })
 
+  //--------------IMPLEMENTED TUESDAY, needs frontend
 languageRouter
   .get('/head', async (req, res, next) => {
-    // implement me
-    res.send('implement me!')
+    try {
+      const language = await LanguageService.getUsersLanguage(
+        req.app.get('db'),
+        req.user.id,
+      )
+      const word = await LanguageService.getWordById(
+        req.app.get('db'),
+        language.head
+      )
+
+      res.json({
+        nextWord: word.original,
+        wordCorrectCount: word.correct_count,
+        wordIncorrectCount: word.incorrect_count,
+        totalScore: language.total_score
+      })
+      console.log(word)
+    } catch(error) {
+      next(error)
+    }
   })
 
 languageRouter
