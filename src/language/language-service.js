@@ -1,7 +1,8 @@
 const LinkedList = require('./LinkedList')
-let WordList = new LinkedList()
 
 const LanguageService = {
+  WordList: new LinkedList(),
+  current: null,
   getUsersLanguage(db, user_id) {
     return db
       .from('language')
@@ -50,11 +51,19 @@ const LanguageService = {
   },
 
   // There may be several issues with some of these. 
-  updateHead(db, language_id, head) {
+  updateHead(db, word_id, head) {
+    return db
+      .from('word')
+      .where('id', word_id)
+      .update(head)
+      .then(rows => {})
+  },
+  updateLanguageTotal(db, language_id, total) {
     return db
       .from('language')
       .where('id', language_id)
-      .update({ head });
+      .update('total_score', total)
+      .then(rows => {})
   },
   
   getHead(db, language_id) {
@@ -73,15 +82,36 @@ const LanguageService = {
   },
 
   populateLinkedList(words) {
-    WordList.head = null;
+    this.WordList.head = null;
     for(let i=0; i<words.length; i++){
-      WordList.insertLast(words[i])
+      this.WordList.insertLast(words[i].id)
     }
-    return WordList
+    console.log(this.WordList.display());
+    this.current = this.WordList.head;
+    return this.WordList
   },
 
+  moveWord(word) {
+    let curr = this.WordList.head
+    let prev = this.WordList.head
+    let pulledWord
+    while (curr && curr.value !== word.id) {
+      prev = curr;
+      curr = curr.next;
+    }
+    if (!curr) {
+      return
+    }
+    pulledWord = curr
+    prev.next = curr.next
+    //InsertWordAt function used here
+    this.insertWordAt(word, word.memory_value+1)
+  },
 
-
+  insertWordAt(word, memoryPos) {
+    //Word is placed at memoryPos within the linked list
+    //Update next values/ids in both linked list and database
+  }
 }
 
 module.exports = LanguageService

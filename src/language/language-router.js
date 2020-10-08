@@ -50,11 +50,18 @@ languageRouter
         req.app.get('db'),
         req.user.id,
       )
-      const word = await LanguageService.getWordById(
+      
+      const words = await LanguageService.getLanguageWords(
         req.app.get('db'),
-        language.head
+        req.language.id,
       )
 
+      LanguageService.populateLinkedList(words)
+
+      const word = await LanguageService.getWordById(
+        req.app.get('db'),
+        LanguageService.current.value
+      )
       res.json({
         nextWord: word.original,
         wordCorrectCount: word.correct_count,
@@ -81,17 +88,17 @@ languageRouter
         req.app.get('db'),
         req.user.id,
       )
-      const words = await LanguageService.getLanguageWords(
-        req.app.get('db'),
-        req.language.id,
-      )
+      // const words = await LanguageService.getLanguageWords(
+      //   req.app.get('db'),
+      //   req.language.id,
+      // )
       const word = await LanguageService.getWordById(
         req.app.get('db'),
-        language.head
+        LanguageService.current.value
       )
-      const nextWord = await LanguageService.getWordById(
+      let nextWord = await LanguageService.getWordById(
         req.app.get('db'),
-        word.next
+        LanguageService.current.next ? LanguageService.current.next.value : null
       )
       //I imagine that the linked list should be traversed as the
       //user moves through the questions, and the database should be updated
@@ -99,37 +106,50 @@ languageRouter
       //of using a linked list class when the structure of the
       //database already follows a linked list pattern. But the instructions
       //are explicit.
-      const wordList = LanguageService.populateLinkedList(words)
-      console.log(wordList)
-
+      
+      let isCorrect = false;
       if(guess !== word.translation) {
         word.incorrect_count++
-        LanguageService.addIncorrect(
-          req.app.get('db'),
-          word.id,
-          word.incorrect_count
-        )
-
-        res.status(200).json({
-          nextWord: nextWord.original,
-          totalScore: language.total_score,
-          wordCorrectCount: word.correct_count,
-          wordIncorrectCount: word.incorrect_count,
-          answer: word.translation,
-          isCorrect: false
-        })
-          
-      } else{
+        word.memory_value = 1
+        isCorrect = false;
+      } else {
+        word.correct_count++
+        word.memory_value *= 2
         language.total_score++
-        res.status(200).json({
-          nextWord: nextWord.original,
-          totalScore: language.total_score,
-          wordCorrectCount: word.correct_count,
-          wordIncorrectCount: word.incorrect_count,
-          answer: word.translation,
-          isCorrect: true
-        })
+        isCorrect = true;
       }
+      const newHead = {
+        correct_count: word.correct_count,
+        incorrect_count: word.incorrect_count,
+        memory_value: word.memory_value
+      }
+      LanguageService.updateHead(
+        req.app.get('db'),
+        LanguageService.current.value,
+        newHead
+      )
+      LanguageService.updateLanguageTotal(
+        req.app.get('db'),
+        language.id,
+        language.total_score
+      )
+      LanguageService.moveWord(word);
+      LanguageService.current = LanguageService.current.next ? LanguageService.current.next : LanguageService.WordList.head;
+      if (!nextWord) {
+        nextWord = await LanguageService.getWordById(
+          req.app.get('db'),
+          LanguageService.current.value
+        )
+      }
+
+      res.status(200).json({
+        nextWord: nextWord.original,
+        totalScore: language.total_score,
+        wordCorrectCount: nextWord.correct_count,
+        wordIncorrectCount: nextWord.incorrect_count,
+        answer: word.translation,
+        isCorrect
+      })
     }
     catch(error) {
       next(error)
