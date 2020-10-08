@@ -94,7 +94,9 @@ class LinkedList {
             this.insertBefore(value, node.value)
         } else {
             for(let i=2; i<position; i++) {
-                node = node.next;
+                if(node.next){
+                    node = node.next;
+                }
             }
             const item = new _Node(value, node.next)
             node.next = item;
@@ -109,6 +111,18 @@ class LinkedList {
             node = node.next
         }
         return lstArray;
+    }
+
+    updateLinks() {
+        let node = this.head;
+        while(node){
+            if(node.next){
+                node.value.next = node.next.value.id;
+            } else {
+                node.value.next = null;
+            }
+            node = node.next
+        }
     }
 }
 

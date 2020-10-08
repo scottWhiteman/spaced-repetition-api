@@ -56,11 +56,11 @@ languageRouter
         req.language.id,
       )
 
-      LanguageService.populateLinkedList(words)
+      
 
       const word = await LanguageService.getWordById(
         req.app.get('db'),
-        LanguageService.current.value
+        language.head
       )
       res.json({
         nextWord: word.original,
@@ -73,8 +73,6 @@ languageRouter
     }
   })
 
-//Lots of missteps here. Sorry, it's been a long day.
-//There is a lot that we can refactor also.
 languageRouter
   .post('/guess', BodyParser, async (req, res, next) => {
     try {
@@ -88,26 +86,16 @@ languageRouter
         req.app.get('db'),
         req.user.id,
       )
-      // const words = await LanguageService.getLanguageWords(
-      //   req.app.get('db'),
-      //   req.language.id,
-      // )
-      const word = await LanguageService.getWordById(
+
+      const words = await LanguageService.getLanguageWords(
         req.app.get('db'),
-        LanguageService.current.value
+        req.language.id,
       )
-      let nextWord = await LanguageService.getWordById(
-        req.app.get('db'),
-        LanguageService.current.next ? LanguageService.current.next.value : null
-      )
-      //I imagine that the linked list should be traversed as the
-      //user moves through the questions, and the database should be updated
-      //as the user answers the questions. I'm failing to see the benefit
-      //of using a linked list class when the structure of the
-      //database already follows a linked list pattern. But the instructions
-      //are explicit.
+
+      const WordList = LanguageService.populateLinkedList(words, language.head)
+      let word = WordList.head.value
+      let isCorrect;
       
-      let isCorrect = false;
       if(guess !== word.translation) {
         word.incorrect_count++
         word.memory_value = 1
@@ -118,29 +106,25 @@ languageRouter
         language.total_score++
         isCorrect = true;
       }
-      const newHead = {
-        correct_count: word.correct_count,
-        incorrect_count: word.incorrect_count,
-        memory_value: word.memory_value
-      }
-      LanguageService.updateHead(
+      WordList.remove(word)
+      WordList.insertAt(word, word.memory_value+1)
+      WordList.updateLinks()
+      
+      await LanguageService.updateHead(
         req.app.get('db'),
-        LanguageService.current.value,
-        newHead
+        language.id,
+        WordList.head.value.id
       )
-      LanguageService.updateLanguageTotal(
+
+      await LanguageService.updateLanguageTotal(
         req.app.get('db'),
         language.id,
         language.total_score
       )
-      LanguageService.moveWord(word);
-      LanguageService.current = LanguageService.current.next ? LanguageService.current.next : LanguageService.WordList.head;
-      if (!nextWord) {
-        nextWord = await LanguageService.getWordById(
-          req.app.get('db'),
-          LanguageService.current.value
-        )
-      }
+      
+      await LanguageService.serialize(req.app.get('db'), WordList)
+
+      const nextWord = WordList.head.value;
 
       res.status(200).json({
         nextWord: nextWord.original,

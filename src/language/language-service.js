@@ -1,7 +1,8 @@
+const { serializeUser } = require('../user/user-service')
 const LinkedList = require('./LinkedList')
 
 const LanguageService = {
-  WordList: new LinkedList(),
+  
   current: null,
   getUsersLanguage(db, user_id) {
     return db
@@ -50,14 +51,13 @@ const LanguageService = {
       .first()
   },
 
-  // There may be several issues with some of these. 
-  updateHead(db, word_id, head) {
+  updateHead(db, language_id, head_id) {
     return db
-      .from('word')
-      .where('id', word_id)
-      .update(head)
-      .then(rows => {})
+      .from('language')
+      .update({head: head_id})
+      .where({id: language_id})
   },
+
   updateLanguageTotal(db, language_id, total) {
     return db
       .from('language')
@@ -81,14 +81,18 @@ const LanguageService = {
       .increment(incorrect_count, 1)
   },
 
-  populateLinkedList(words) {
-    this.WordList.head = null;
-    for(let i=0; i<words.length; i++){
-      this.WordList.insertLast(words[i].id)
+  populateLinkedList(words, head) {
+    let WordList = new LinkedList()
+    let headWord = words.find(word => word.id === head)
+    if(headWord){
+      WordList.insertLast(headWord)
     }
-    console.log(this.WordList.display());
-    this.current = this.WordList.head;
-    return this.WordList
+    let node = words.find(word => word.id === headWord.next)
+    while(node){
+      WordList.insertLast(node)
+      node = words.find(word => word.id === node.next)
+    }
+    return WordList
   },
 
   moveWord(word) {
@@ -111,7 +115,26 @@ const LanguageService = {
   insertWordAt(word, memoryPos) {
     //Word is placed at memoryPos within the linked list
     //Update next values/ids in both linked list and database
-  }
+    
+  },
+
+  serialize(db, list) {
+    return db.transaction(trx => {
+      let words = list.display();
+      const queries = [];
+      words.forEach(word => {
+        const query = db('word')
+          .where('id', word.id)
+          .update(word)
+          .transacting(trx)
+        queries.push(query)
+      })
+      Promise.all(queries)
+        .then(trx.commit)
+        .catch(trx.rollback)
+    })
+  },
+
 }
 
 module.exports = LanguageService

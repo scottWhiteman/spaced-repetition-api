@@ -235,7 +235,7 @@ describe.only('Language Endpoints', function () {
           })
       })
 
-      it.skip(`moves the word 2 spaces, increases score and correct count`, async () => {
+      it(`moves the word 2 spaces, increases score and correct count`, async () => {
         let correctPostBody = {
           guess: testLanguagesWords[0].translation,
         }
