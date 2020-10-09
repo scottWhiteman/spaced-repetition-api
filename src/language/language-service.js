@@ -74,13 +74,6 @@ const LanguageService = {
       .then(res => res.head);
   },
 
-  addIncorrect(db, id, incorrect_count) {
-    return db
-      .from('word')
-      .where({ id })
-      .increment(incorrect_count, 1)
-  },
-
   populateLinkedList(words, head) {
     let WordList = new LinkedList()
     let headWord = words.find(word => word.id === head)
@@ -93,29 +86,6 @@ const LanguageService = {
       node = words.find(word => word.id === node.next)
     }
     return WordList
-  },
-
-  moveWord(word) {
-    let curr = this.WordList.head
-    let prev = this.WordList.head
-    let pulledWord
-    while (curr && curr.value !== word.id) {
-      prev = curr;
-      curr = curr.next;
-    }
-    if (!curr) {
-      return
-    }
-    pulledWord = curr
-    prev.next = curr.next
-    //InsertWordAt function used here
-    this.insertWordAt(word, word.memory_value+1)
-  },
-
-  insertWordAt(word, memoryPos) {
-    //Word is placed at memoryPos within the linked list
-    //Update next values/ids in both linked list and database
-    
   },
 
   serialize(db, list) {
